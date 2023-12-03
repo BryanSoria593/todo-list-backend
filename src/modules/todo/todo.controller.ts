@@ -15,8 +15,8 @@ export class TodoController {
   constructor(private todoService: TodoService) {}
 
   @Get('getAll')
-  getTodos() {
-    return this.todoService.getAll();
+  async getTodos() {
+    return await this.todoService.getAll();
   }
 
   @Post('create')

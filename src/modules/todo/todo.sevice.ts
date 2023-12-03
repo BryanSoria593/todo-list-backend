@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Todo } from './schemas/todo.schema';
-import { Model } from 'mongoose';
-import { CreateTodoDto } from './dto/todo.dto';
+import { Model, Types } from 'mongoose';
+import { CreateTodoDto, UpdateTodoDto } from './dto/todo.dto';
 
 @Injectable()
 export class TodoService {
@@ -10,10 +10,11 @@ export class TodoService {
     @InjectModel(Todo.name) private readonly todoModel: Model<Todo>,
   ) {}
 
-  async create(createTodoDto: CreateTodoDto): Promise<Todo> {
-    const createdTodo = new this.todoModel(createTodoDto);
-    const saveTodo = createdTodo.save({});
-    return (await saveTodo).toObject({ versionKey: false });
+  async create(createTodoDto: CreateTodoDto) {
+    const todo = new this.todoModel(createTodoDto);
+    const todoSaved = await todo.save();
+    const todoWithStatus = await this.findByIdWithStatus(todoSaved._id);
+    return todoWithStatus[0];
   }
 
   async getAll() {
@@ -36,11 +37,16 @@ export class TodoService {
     ]);
   }
 
-  async updateTodo(id: string, createTodoDto: CreateTodoDto) {
-    return await this.todoModel.findByIdAndUpdate(id, createTodoDto, {
+  async updateTodo(id: string, updateTodo: UpdateTodoDto) {
+    const updatedTodo = await this.todoModel.findByIdAndUpdate(id, updateTodo, {
       new: true,
     });
+
+    const todoWithStatus = await this.findByIdWithStatus(updatedTodo._id);
+
+    return todoWithStatus[0];
   }
+
   async updateStatus(id: string, statusId: number) {
     return await this.todoModel.findByIdAndUpdate(
       id,
@@ -51,5 +57,28 @@ export class TodoService {
 
   async deleteById(id: string) {
     return await this.todoModel.findByIdAndRemove(id);
+  }
+
+  async findByIdWithStatus(id: Types.ObjectId) {
+    return await this.todoModel.aggregate([
+      {
+        $match: { _id: id },
+      },
+      {
+        $lookup: {
+          from: 'status',
+          localField: 'statusId',
+          foreignField: '_id',
+          as: 'status',
+        },
+      },
+      {
+        $project: {
+          title: 1,
+          description: 1,
+          status: { $arrayElemAt: ['$status', 0] },
+        },
+      },
+    ]);
   }
 }

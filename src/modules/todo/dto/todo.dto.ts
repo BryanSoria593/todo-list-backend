@@ -27,3 +27,15 @@ export class UpdateTodoDto {
   @IsNumber()
   statusId: number;
 }
+
+export class ResponseCreateTodoDto {
+  id: string;
+  title: string;
+  description: string;
+  status: {
+    _id: number;
+    name: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
